@@ -164,19 +164,9 @@ async function fetchContentWithType(targetUrl, requestHeaders) {
             throw err; // 抛出错误
         }
 
-        // 检查 Content-Type
-        const contentType = response.headers.get('content-type') || '';
-        
-        // 对图片、视频、音频等二进制内容，检查是否可以直接使用流
-        if (contentType.startsWith('image/') || contentType.startsWith('video/') || 
-            contentType.startsWith('audio/') || contentType.includes('octet-stream')) {
-            // 返回特殊标记，让主处理函数用流式转发
-            logDebug(`检测到二进制内容: ${targetUrl}, Content-Type: ${contentType}`);
-            return { isStream: true, response, contentType };
-        }
-        
-        // 文本内容：使用 text
+        // 读取响应内容
         const content = await response.text();
+        const contentType = response.headers.get('content-type') || '';
         logDebug(`请求成功: ${targetUrl}, Content-Type: ${contentType}, 内容长度: ${content.length}`);
         // 返回结果
         return { content, contentType, responseHeaders: response.headers };
@@ -423,28 +413,7 @@ export default async function handler(req, res) {
         console.info(`开始处理目标 URL 的代理请求: ${targetUrl}`);
 
         // --- 获取并处理目标内容 ---
-        const fetchResult = await fetchContentWithType(targetUrl, req.headers);
-
-        // --- 如果是流式二进制内容（图片等），直接流式转发 ---
-        if (fetchResult.isStream && fetchResult.response) {
-            console.info(`流式转发二进制内容: ${targetUrl}, 类型: ${fetchResult.contentType}`);
-            
-            // 设置响应头
-            res.setHeader('Content-Type', fetchResult.contentType);
-            res.setHeader('Cache-Control', `public, max-age=${CACHE_TTL}`);
-            
-            // 直接流式转发响应体
-            res.status(200);
-            
-            // 将 fetch 响应流接入 Express 响应流
-            for await (const chunk of fetchResult.response.body) {
-                res.write(chunk);
-            }
-            res.end();
-            return;
-        }
-        
-        const { content, contentType, responseHeaders } = fetchResult;
+        const { content, contentType, responseHeaders } = await fetchContentWithType(targetUrl, req.headers);
 
         // --- 如果是 M3U8，处理并返回 ---
         if (isM3u8Content(content, contentType)) {
