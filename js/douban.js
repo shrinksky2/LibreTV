@@ -427,8 +427,8 @@ function renderRecommend(tag, pageLimit, pageStart) {
     
     // 使用通用请求函数
     fetchDoubanData(target)
-        .then(data => {
-            renderDoubanCards(data, container);
+        .then(async data => {
+            await renderDoubanCards(data, container);
         })
         .catch(error => {
             console.error("获取豆瓣数据失败：", error);
@@ -500,7 +500,7 @@ async function fetchDoubanData(url) {
 }
 
 // 抽取渲染豆瓣卡片的逻辑到单独函数
-function renderDoubanCards(data, container) {
+async function renderDoubanCards(data, container) {
     // 创建文档片段以提高性能
     const fragment = document.createDocumentFragment();
     
@@ -514,7 +514,7 @@ function renderDoubanCards(data, container) {
         fragment.appendChild(emptyEl);
     } else {
         // 循环创建每个影视卡片
-        data.subjects.forEach(item => {
+        for (const item of data.subjects) {
             const card = document.createElement("div");
             card.className = "bg-[#111] hover:bg-[#222] transition-all duration-300 rounded-lg overflow-hidden flex flex-col transform hover:scale-105 shadow-md hover:shadow-lg";
             
@@ -528,9 +528,10 @@ function renderDoubanCards(data, container) {
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;');
             
-            // 处理图片URL - 优先使用代理访问豆瓣图片，避免被反爬虫拦截
-            // 豆瓣图片返回418是因为直接访问被阻止，需要通过代理
-            const proxiedCoverUrl = PROXY_URL + encodeURIComponent(item.cover);
+            // 处理图片URL - 使用代理访问豆瓣图片，添加认证信息避免401错误
+            const proxiedCoverUrl = await (window.ProxyAuth?.addAuthToProxyUrl ? 
+                window.ProxyAuth.addAuthToProxyUrl(PROXY_URL + encodeURIComponent(item.cover)) :
+                PROXY_URL + encodeURIComponent(item.cover));
             
             // 为不同设备优化卡片布局
             card.innerHTML = `
