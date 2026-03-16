@@ -559,7 +559,7 @@ async function renderDoubanCards(data, container) {
             `;
             
             fragment.appendChild(card);
-        });
+        };
     }
     
     // 清空并添加所有新元素
