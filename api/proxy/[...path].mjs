@@ -164,9 +164,21 @@ async function fetchContentWithType(targetUrl, requestHeaders) {
             throw err; // 抛出错误
         }
 
-        // 读取响应内容
-        const content = await response.text();
+        // 检查 Content-Type，决定如何读取响应内容
         const contentType = response.headers.get('content-type') || '';
+        let content;
+        
+        // 对图片、视频、音频等二进制内容使用 arrayBuffer，对文本内容使用 text
+        if (contentType.startsWith('image/') || contentType.startsWith('video/') || 
+            contentType.startsWith('audio/') || contentType.includes('octet-stream')) {
+            // 二进制内容：使用 arrayBuffer
+            const arrayBuffer = await response.arrayBuffer();
+            content = Buffer.from(arrayBuffer); // 转换为 Node.js Buffer
+        } else {
+            // 文本内容：使用 text
+            content = await response.text();
+        }
+        
         logDebug(`请求成功: ${targetUrl}, Content-Type: ${contentType}, 内容长度: ${content.length}`);
         // 返回结果
         return { content, contentType, responseHeaders: response.headers };
